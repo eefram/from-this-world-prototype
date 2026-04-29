@@ -1385,8 +1385,12 @@ document.addEventListener('pointerlockchange', () => {
 });
 document.addEventListener('mousemove', e => {
   if(!G.pointerLocked || !G.started) return;
-  camYaw   -= e.movementX * 0.0025;
-  camPitch  = Math.max(-0.7, Math.min(0.35, camPitch + e.movementY * 0.0025));
+  camYaw -= e.movementX * 0.0025;
+  // Keep camYaw bounded so it never drifts to huge values
+  while(camYaw >  Math.PI) camYaw -= Math.PI * 2;
+  while(camYaw < -Math.PI) camYaw += Math.PI * 2;
+  // Inverted Y: mouse up = camera rises
+  camPitch = Math.max(-0.7, Math.min(0.35, camPitch - e.movementY * 0.0025));
 });
 
 function handleInteract() {
@@ -1497,8 +1501,8 @@ function updatePlayer(dt) {
   if(moveDir.lengthSq() > 0){
     moveDir.normalize();
     const cos = Math.cos(camYaw), sin = Math.sin(camYaw);
-    const wx = cos*moveDir.x - sin*moveDir.z;
-    const wz = sin*moveDir.x + cos*moveDir.z;
+    const wx =  cos*moveDir.x - sin*moveDir.z;
+    const wz = -sin*moveDir.x - cos*moveDir.z;
     const step = player.speed * dt;
     const nx = player.group.position.x + wx*step;
     const nz = player.group.position.z + wz*step;
@@ -1512,6 +1516,9 @@ function updatePlayer(dt) {
     while(diff >  Math.PI) diff -= Math.PI * 2;
     while(diff < -Math.PI) diff += Math.PI * 2;
     player.group.rotation.y += diff * 0.2;
+    // Keep angle bounded to prevent float drift
+    while(player.group.rotation.y >  Math.PI) player.group.rotation.y -= Math.PI * 2;
+    while(player.group.rotation.y < -Math.PI) player.group.rotation.y += Math.PI * 2;
   }
 }
 
