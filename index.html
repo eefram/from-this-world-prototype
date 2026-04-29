@@ -1,0 +1,1673 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>From This World</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#e8a830">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="From This World">
+<link rel="apple-touch-icon" href="icon.svg">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: #000; overflow: hidden; font-family: 'Georgia', serif; }
+  #canvas { display: block; }
+
+  /* Title Screen */
+  #title-screen {
+    position: fixed; inset: 0;
+    background: #0a0604;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    z-index: 100;
+    transition: opacity 1.5s ease;
+  }
+  #title-screen.fade-out { opacity: 0; pointer-events: none; }
+  .title-main {
+    font-size: clamp(36px, 6vw, 72px);
+    color: #e8a830;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    text-shadow: 0 0 40px #c8841080, 0 0 80px #c8841040;
+    margin-bottom: 12px;
+  }
+  .title-sub {
+    font-size: clamp(14px, 2vw, 20px);
+    color: #b8863a;
+    letter-spacing: 0.4em;
+    font-style: italic;
+    margin-bottom: 60px;
+    opacity: 0.8;
+  }
+  .name-label {
+    color: #c8a060;
+    font-size: 15px;
+    letter-spacing: 0.15em;
+    margin-bottom: 14px;
+    opacity: 0.9;
+  }
+  #player-name {
+    background: transparent;
+    border: none;
+    border-bottom: 1px solid #c8841060;
+    color: #e8c878;
+    font-family: 'Georgia', serif;
+    font-size: 22px;
+    text-align: center;
+    padding: 8px 0;
+    width: 220px;
+    outline: none;
+    letter-spacing: 0.1em;
+  }
+  #player-name::placeholder { color: #8a6030; }
+  #begin-btn {
+    margin-top: 40px;
+    background: transparent;
+    border: 1px solid #c8841060;
+    color: #e8a830;
+    font-family: 'Georgia', serif;
+    font-size: 15px;
+    letter-spacing: 0.3em;
+    text-transform: uppercase;
+    padding: 12px 40px;
+    cursor: pointer;
+    transition: all 0.3s;
+  }
+  #begin-btn:hover {
+    border-color: #e8a830;
+    box-shadow: 0 0 20px #e8a83030;
+    color: #f8c840;
+  }
+
+  /* HUD */
+  #hud { position: fixed; inset: 0; pointer-events: none; z-index: 10; }
+  #hud-tl {
+    position: absolute; top: 20px; left: 20px;
+    color: #e8c878; font-size: 14px; line-height: 1.6;
+    text-shadow: 0 1px 4px #00000080;
+  }
+  #hud-tl .player-name-hud { font-size: 17px; color: #f0d080; letter-spacing: 0.05em; }
+  #hud-tl .prosperity { color: #d4a040; font-size: 13px; }
+  #hud-tr {
+    position: absolute; top: 20px; right: 20px;
+    color: #e8c878; font-size: 13px; text-align: right;
+    text-shadow: 0 1px 4px #00000080;
+    letter-spacing: 0.05em;
+  }
+  #hud-tr .rep-label { font-size: 11px; color: #a08040; text-transform: uppercase; letter-spacing: 0.15em; }
+  #hud-tr .rep-value { font-size: 16px; color: #f0c850; }
+  #hud-bl {
+    position: absolute; bottom: 30px; left: 20px;
+    color: #c8a860; font-size: 13px;
+    max-width: 300px; line-height: 1.5;
+    text-shadow: 0 1px 4px #00000090;
+  }
+  #hud-br {
+    position: absolute; bottom: 30px; right: 20px;
+  }
+  #burden-bar-wrap {
+    width: 80px; height: 3px;
+    background: #1a1008;
+    border-radius: 2px;
+    overflow: hidden;
+  }
+  #burden-bar-fill {
+    height: 100%; width: 0%;
+    background: #7a3a3a;
+    border-radius: 2px;
+    transition: width 0.5s ease;
+  }
+  #interact-prompt {
+    position: absolute;
+    bottom: 80px; left: 50%; transform: translateX(-50%);
+    color: #f0d878;
+    font-size: 14px;
+    letter-spacing: 0.1em;
+    text-shadow: 0 0 10px #f0d87840;
+    background: #00000040;
+    padding: 6px 18px;
+    border-radius: 3px;
+    border: 1px solid #c8a04020;
+    display: none;
+  }
+
+  /* Dialogue box */
+  #dialogue-box {
+    position: fixed;
+    bottom: 100px; left: 50%; transform: translateX(-50%);
+    width: min(520px, 90vw);
+    background: #1a1008e8;
+    border: 1px solid #c8841030;
+    padding: 20px 24px;
+    z-index: 20;
+    display: none;
+    pointer-events: auto;
+  }
+  #dialogue-speaker {
+    color: #e8a830;
+    font-size: 13px;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    margin-bottom: 8px;
+  }
+  #dialogue-text {
+    color: #e0cc98;
+    font-size: 15px;
+    line-height: 1.7;
+    margin-bottom: 14px;
+  }
+  #dialogue-continue {
+    color: #a08040;
+    font-size: 12px;
+    letter-spacing: 0.1em;
+    cursor: pointer;
+    pointer-events: auto;
+    text-align: right;
+  }
+
+  /* Task notification */
+  #task-notify {
+    position: fixed;
+    top: 80px; left: 50%; transform: translateX(-50%);
+    background: #1a1008d0;
+    border: 1px solid #c8841040;
+    padding: 10px 20px;
+    color: #f0d070;
+    font-size: 13px;
+    letter-spacing: 0.05em;
+    z-index: 20;
+    opacity: 0;
+    transition: opacity 0.5s;
+    pointer-events: none;
+    text-align: center;
+  }
+  #task-notify.show { opacity: 1; }
+
+  #controls-hint {
+    position: fixed; bottom: 10px; left: 50%; transform: translateX(-50%);
+    color: #6a5030; font-size: 11px; letter-spacing: 0.1em;
+    pointer-events: none; z-index: 10;
+  }
+</style>
+</head>
+<body>
+
+<!-- Title Screen -->
+<div id="title-screen">
+  <div class="title-main">From This World</div>
+  <div class="title-sub">A Pilgrim's Progress</div>
+  <div class="name-label">What is your name, pilgrim?</div>
+  <input id="player-name" type="text" placeholder="Enter your name" maxlength="24" autocomplete="off" />
+  <button id="begin-btn">Begin</button>
+</div>
+
+<!-- HUD -->
+<div id="hud" style="display:none;">
+  <div id="hud-tl">
+    <div class="player-name-hud" id="hud-name"></div>
+    <div class="prosperity">Prosperity: <span id="hud-prosperity">0</span></div>
+  </div>
+  <div id="hud-tr">
+    <div class="rep-label">Standing</div>
+    <div class="rep-value" id="hud-rep">Newcomer</div>
+  </div>
+  <div id="hud-bl">
+    <div id="hud-task"></div>
+  </div>
+  <div id="hud-br">
+    <div id="burden-bar-wrap"><div id="burden-bar-fill"></div></div>
+  </div>
+  <div id="interact-prompt">Press E to talk</div>
+</div>
+
+<div id="dialogue-box">
+  <div id="dialogue-speaker"></div>
+  <div id="dialogue-text"></div>
+  <div id="dialogue-continue">[ Press E to continue ]</div>
+</div>
+
+<div id="task-notify"></div>
+<div id="controls-hint">WASD — Move &nbsp;|&nbsp; Mouse — Camera &nbsp;|&nbsp; E — Interact</div>
+<div id="lock-hint" style="display:none;position:fixed;inset:0;align-items:center;justify-content:center;z-index:11;pointer-events:none;">
+  <div style="background:#00000070;border:1px solid #c8a04030;padding:14px 32px;color:#e8c878;font-family:Georgia,serif;font-size:16px;letter-spacing:0.12em;">Click anywhere to enable camera</div>
+</div>
+
+<canvas id="canvas"></canvas>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+// ============================================================
+// GAME STATE
+// ============================================================
+const G = {
+  playerName: 'Pilgrim',
+  prosperity: 0,
+  reputation: 0,
+  burden: 0,
+  completedTasks: new Set(),
+  activeTask: null,
+  dialogueOpen: false,
+  nearNPC: null,
+  nearObject: null,
+  keys: {},
+  mouseX: 0, mouseY: 0,
+  mouseDelta: { x: 0, y: 0 },
+  pointerLocked: false,
+  started: false,
+  time: 0,
+};
+
+const REP_LEVELS = [
+  { min: 0,   label: 'Newcomer' },
+  { min: 50,  label: 'Neighbor' },
+  { min: 120, label: 'Friend' },
+  { min: 250, label: 'Trusted Friend' },
+  { min: 450, label: 'Pillar of the Community' },
+];
+
+function getRepLabel() {
+  for (let i = REP_LEVELS.length - 1; i >= 0; i--) {
+    if (G.reputation >= REP_LEVELS[i].min) return REP_LEVELS[i].label;
+  }
+  return 'Newcomer';
+}
+
+// ============================================================
+// THREE.JS SETUP
+// ============================================================
+const canvas = document.getElementById('canvas');
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.1;
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0xd4884a);
+scene.fog = new THREE.Fog(0xc87840, 30, 120);
+
+const camera = new THREE.PerspectiveCamera(65, 1, 0.1, 200);
+
+function resize() {
+  renderer.setSize(window.innerWidth, window.innerHeight);
+  camera.aspect = window.innerWidth / window.innerHeight;
+  camera.updateProjectionMatrix();
+}
+window.addEventListener('resize', resize);
+resize();
+
+// ============================================================
+// LIGHTING
+// ============================================================
+const ambientLight = new THREE.AmbientLight(0xf0c878, 0.7);
+scene.add(ambientLight);
+
+const sunLight = new THREE.DirectionalLight(0xffcc88, 1.2);
+sunLight.position.set(30, 50, 20);
+sunLight.castShadow = true;
+sunLight.shadow.mapSize.set(2048, 2048);
+sunLight.shadow.camera.near = 0.1;
+sunLight.shadow.camera.far = 200;
+sunLight.shadow.camera.left = -80;
+sunLight.shadow.camera.right = 80;
+sunLight.shadow.camera.top = 80;
+sunLight.shadow.camera.bottom = -80;
+scene.add(sunLight);
+
+const fillLight = new THREE.DirectionalLight(0xc87820, 0.4);
+fillLight.position.set(-20, 10, -30);
+scene.add(fillLight);
+
+// ============================================================
+// MATERIALS
+// ============================================================
+const MAT = {
+  ground:     new THREE.MeshLambertMaterial({ color: 0xc4904a }),
+  groundAlt:  new THREE.MeshLambertMaterial({ color: 0xb88040 }),
+  wall1:      new THREE.MeshLambertMaterial({ color: 0xe8c888 }),
+  wall2:      new THREE.MeshLambertMaterial({ color: 0xd4a868 }),
+  wall3:      new THREE.MeshLambertMaterial({ color: 0xc89858 }),
+  wall4:      new THREE.MeshLambertMaterial({ color: 0xf0d898 }),
+  roof1:      new THREE.MeshLambertMaterial({ color: 0xa04820 }),
+  roof2:      new THREE.MeshLambertMaterial({ color: 0xc85c28 }),
+  roof3:      new THREE.MeshLambertMaterial({ color: 0x884018 }),
+  roof4:      new THREE.MeshLambertMaterial({ color: 0xb06030 }),
+  wood:       new THREE.MeshLambertMaterial({ color: 0x8a5828 }),
+  stone:      new THREE.MeshLambertMaterial({ color: 0xa89070 }),
+  market:     new THREE.MeshLambertMaterial({ color: 0xe04820 }),
+  market2:    new THREE.MeshLambertMaterial({ color: 0x2858a0 }),
+  market3:    new THREE.MeshLambertMaterial({ color: 0x38a028 }),
+  gold:       new THREE.MeshLambertMaterial({ color: 0xe8b830 }),
+  path:       new THREE.MeshLambertMaterial({ color: 0xd8a870 }),
+  grass:      new THREE.MeshLambertMaterial({ color: 0x98a430 }),
+  forge:      new THREE.MeshLambertMaterial({ color: 0x402010 }),
+  banner1:    new THREE.MeshLambertMaterial({ color: 0xd44820, side: THREE.DoubleSide }),
+  banner2:    new THREE.MeshLambertMaterial({ color: 0xe8c030, side: THREE.DoubleSide }),
+  banner3:    new THREE.MeshLambertMaterial({ color: 0x2858b0, side: THREE.DoubleSide }),
+};
+
+// ============================================================
+// WORLD OBJECTS REGISTRY
+// ============================================================
+const collidables = [];   // { mesh, radius }
+const interactables = []; // { mesh, radius, onInteract, label }
+const worldObjects = {};  // named objects for task system
+
+function box(w,h,d, mat) {
+  return new THREE.Mesh(new THREE.BoxGeometry(w,h,d), mat);
+}
+function cyl(rt,rb,h, seg, mat) {
+  return new THREE.Mesh(new THREE.CylinderGeometry(rt,rb,h,seg), mat);
+}
+
+// ============================================================
+// GROUND
+// ============================================================
+(function buildGround() {
+  const g = new THREE.Mesh(new THREE.PlaneGeometry(200,200,20,20), MAT.ground);
+  g.rotation.x = -Math.PI/2;
+  g.receiveShadow = true;
+  scene.add(g);
+
+  // Cobblestone path pattern — market square center
+  const squarePave = new THREE.Mesh(new THREE.PlaneGeometry(28,28), MAT.path);
+  squarePave.rotation.x = -Math.PI/2;
+  squarePave.position.set(0, 0.01, 0);
+  scene.add(squarePave);
+
+  // Paths radiating out
+  const paths = [
+    {x:0,z:0,w:5,d:30,rx:0,rz:15},
+    {x:0,z:0,w:5,d:30,rx:0,rz:-15},
+    {x:0,z:0,w:30,d:5,rx:15,rz:0},
+    {x:0,z:0,w:30,d:5,rx:-15,rz:0},
+  ];
+  paths.forEach(p=>{
+    const pm = new THREE.Mesh(new THREE.PlaneGeometry(p.w,p.d), MAT.path);
+    pm.rotation.x = -Math.PI/2;
+    pm.position.set(p.rx, 0.01, p.rz);
+    scene.add(pm);
+  });
+
+  // Grass patches in residential
+  for (let i=0;i<12;i++) {
+    const gp = new THREE.Mesh(new THREE.PlaneGeometry(4+Math.random()*6,4+Math.random()*6), MAT.grass);
+    gp.rotation.x = -Math.PI/2;
+    gp.position.set(-22+Math.random()*8, 0.01, -10+Math.random()*20-5);
+    scene.add(gp);
+  }
+})();
+
+// ============================================================
+// BUILDING HELPER
+// ============================================================
+function makeBuilding(x,z, w,h,d, wallMat, roofMat, collidable=true) {
+  const body = box(w,h,d, wallMat);
+  body.position.set(x, h/2, z);
+  body.castShadow = true;
+  body.receiveShadow = true;
+  scene.add(body);
+
+  const roofH = w*0.35;
+  const roof = new THREE.Mesh(new THREE.ConeGeometry(Math.max(w,d)*0.78, roofH, 4), roofMat);
+  roof.position.set(x, h+roofH/2, z);
+  roof.rotation.y = Math.PI/4;
+  roof.castShadow = true;
+  scene.add(roof);
+
+  if (collidable) {
+    collidables.push({ x, z, rx: w/2+0.3, rz: d/2+0.3 });
+  }
+  return body;
+}
+
+function makeWall(x,z,w,h,d, mat) {
+  const m = box(w,h,d,mat);
+  m.position.set(x,h/2,z);
+  m.castShadow=true; m.receiveShadow=true;
+  scene.add(m);
+  collidables.push({x,z,rx:w/2+0.2,rz:d/2+0.2});
+  return m;
+}
+
+// ============================================================
+// MARKET SQUARE — center
+// ============================================================
+(function buildMarketSquare() {
+  // Fountain / well at center
+  const base = cyl(2.5,2.5,0.5,16, MAT.stone);
+  base.position.set(0,0.25,0);
+  scene.add(base);
+  const rim = cyl(2.5,2.5,0.2,16, MAT.stone);
+  rim.position.set(0,0.6,0);
+  scene.add(rim);
+  const water = new THREE.Mesh(new THREE.CylinderGeometry(2.3,2.3,0.1,16), new THREE.MeshLambertMaterial({color:0x6090c0,transparent:true,opacity:0.8}));
+  water.position.set(0,0.55,0);
+  scene.add(water);
+  const pillar = cyl(0.2,0.2,1.5,8, MAT.stone);
+  pillar.position.set(0,1.25,0);
+  scene.add(pillar);
+  collidables.push({x:0,z:0,rx:2.8,rz:2.8});
+  worldObjects.fountain = base;
+
+  // Market stalls — 8 around the square
+  const stallPositions = [
+    {x:8,z:5,a:0},   {x:-8,z:5,a:Math.PI},
+    {x:8,z:-5,a:0},  {x:-8,z:-5,a:Math.PI},
+    {x:5,z:10,a:Math.PI/2},  {x:-5,z:10,a:-Math.PI/2},
+    {x:5,z:-10,a:Math.PI/2}, {x:-5,z:-10,a:-Math.PI/2},
+  ];
+  const stallColors = [MAT.market, MAT.market2, MAT.market3, MAT.banner1, MAT.banner2, MAT.banner3, MAT.market, MAT.market2];
+  stallPositions.forEach((sp, i) => {
+    const stall = new THREE.Group();
+    // frame
+    const post1 = box(0.15,2.2,0.15, MAT.wood); post1.position.set(-0.9,1.1,0); stall.add(post1);
+    const post2 = box(0.15,2.2,0.15, MAT.wood); post2.position.set(0.9,1.1,0); stall.add(post2);
+    const top = box(2.2,0.12,1.4, stallColors[i]); top.position.set(0,2.2,0); stall.add(top);
+    // counter
+    const counter = box(1.8,0.8,0.5, MAT.wood); counter.position.set(0,0.4,0.3); stall.add(counter);
+    // goods — colorful boxes
+    for(let g=0;g<3;g++){
+      const gbox = box(0.3,0.3,0.3, stallColors[(i+g+1)%stallColors.length]);
+      gbox.position.set(-0.5+g*0.5, 0.95, 0.3);
+      stall.add(gbox);
+    }
+    stall.position.set(sp.x, 0, sp.z);
+    stall.rotation.y = sp.a;
+    stall.castShadow = true;
+    scene.add(stall);
+    collidables.push({x:sp.x, z:sp.z, rx:1.3, rz:0.6});
+
+    if(i===0) worldObjects.stall0 = stall;
+    if(i===1) worldObjects.stall1 = stall;
+  });
+
+  // Invisible stall that appears after task
+  worldObjects.newStall = null; // created on task completion
+
+  // Lantern poles around square
+  const lanternPos = [{x:11,z:11},{x:-11,z:11},{x:11,z:-11},{x:-11,z:-11},{x:0,z:13},{x:0,z:-13}];
+  lanternPos.forEach(lp => {
+    const pole = cyl(0.08,0.08,3.5,6, MAT.stone);
+    pole.position.set(lp.x,1.75,lp.z);
+    scene.add(pole);
+    const lamp = box(0.35,0.35,0.35, new THREE.MeshLambertMaterial({color:0xffe090,emissive:0xffe090,emissiveIntensity:0.6}));
+    lamp.position.set(lp.x,3.6,lp.z);
+    scene.add(lamp);
+    const plight = new THREE.PointLight(0xffcc60, 0.6, 8);
+    plight.position.set(lp.x,3.5,lp.z);
+    scene.add(plight);
+  });
+
+  // Festival decorations — hidden, shown after task
+  worldObjects.festivalDecos = [];
+  for(let f=0;f<8;f++){
+    const flag = new THREE.Mesh(new THREE.PlaneGeometry(0.6,1.0), [MAT.banner1,MAT.banner2,MAT.banner3,MAT.banner1,MAT.banner2,MAT.banner3,MAT.banner1,MAT.banner2][f]);
+    const angle = (f/8)*Math.PI*2;
+    flag.position.set(Math.cos(angle)*11, 4.2, Math.sin(angle)*11);
+    flag.visible = false;
+    scene.add(flag);
+    worldObjects.festivalDecos.push(flag);
+
+    // String between lanterns
+    if(f%2===0){
+      const strGeo = new THREE.BufferGeometry().setFromPoints([
+        new THREE.Vector3(Math.cos(angle)*11,3.6,Math.sin(angle)*11),
+        new THREE.Vector3(Math.cos(angle+Math.PI/4)*11,3.8,Math.sin(angle+Math.PI/4)*11)
+      ]);
+      const string = new THREE.Line(strGeo, new THREE.LineBasicMaterial({color:0xc8a040,visible:false}));
+      string.visible=false;
+      scene.add(string);
+      worldObjects.festivalDecos.push(string);
+    }
+  }
+
+  // Decoration interact markers (3 needed for task)
+  worldObjects.decoMarkers = [];
+  const decoPositions = [{x:10,z:10},{x:-10,z:10},{x:0,z:-12}];
+  decoPositions.forEach((dp,i)=>{
+    const marker = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.4,0.4,0.1,12),
+      new THREE.MeshLambertMaterial({color:0xe8c030,emissive:0xe8c030,emissiveIntensity:0.5})
+    );
+    marker.position.set(dp.x, 0.05, dp.z);
+    marker.visible = false;
+    scene.add(marker);
+    worldObjects.decoMarkers.push({mesh:marker, activated:false, index:i});
+  });
+
+})();
+
+// ============================================================
+// RESIDENTIAL QUARTER — west/northwest
+// ============================================================
+(function buildResidential() {
+  const houses = [
+    {x:-20,z:-8, w:5,h:3.5,d:4, wall:MAT.wall1, roof:MAT.roof1},
+    {x:-27,z:-3, w:4,h:3,d:3.5, wall:MAT.wall2, roof:MAT.roof2},
+    {x:-20,z:8,  w:5,h:4,d:4,   wall:MAT.wall3, roof:MAT.roof3},
+    {x:-28,z:6,  w:4.5,h:3.5,d:4, wall:MAT.wall4, roof:MAT.roof1},
+    {x:-18,z:-18,w:4,h:3,d:3.5, wall:MAT.wall1, roof:MAT.roof4},
+    {x:-26,z:-16,w:5,h:3.5,d:4, wall:MAT.wall2, roof:MAT.roof2},
+    {x:-20,z:18, w:4.5,h:3,d:4, wall:MAT.wall3, roof:MAT.roof3},
+    {x:-28,z:14, w:4,h:4,d:3.5, wall:MAT.wall4, roof:MAT.roof4},
+    {x:-35,z:0,  w:5,h:3.5,d:5, wall:MAT.wall1, roof:MAT.roof2},
+    {x:-35,z:10, w:4,h:3,d:4,   wall:MAT.wall2, roof:MAT.roof1},
+    {x:-35,z:-10,w:4,h:4,d:4,   wall:MAT.wall3, roof:MAT.roof3},
+  ];
+  houses.forEach((h,i) => {
+    const m = makeBuilding(h.x,h.z,h.w,h.h,h.d,h.wall,h.roof);
+    if(i===0) worldObjects.targetHouse = m;
+    if(i===2) worldObjects.neighborHouse = m;
+  });
+
+  // Upgraded roof for house 0 (hidden, shown on task)
+  worldObjects.upgradeRoof = null;
+
+  // New family marker position
+  worldObjects.newFamilyPos = {x:-22, z:2};
+
+  // Flower boxes, small fences
+  for(let i=0;i<8;i++){
+    const fb = box(1.2,0.3,0.4, MAT.wood);
+    fb.position.set(-18+i*(-2.5),0.15, -6+i*2.5);
+    fb.castShadow=true; scene.add(fb);
+    const flower = box(1.0,0.3,0.2, [MAT.market,MAT.banner2,MAT.market3,MAT.gold,MAT.market,MAT.banner2,MAT.market3,MAT.gold][i]);
+    flower.position.set(-18+i*(-2.5),0.45,-6+i*2.5);
+    scene.add(flower);
+  }
+})();
+
+// ============================================================
+// WORKSHOP DISTRICT — east
+// ============================================================
+(function buildWorkshop() {
+  // Main forge building
+  makeBuilding(22,0, 8,5,7, MAT.forge, MAT.roof3);
+  worldObjects.forgeMesh = null;
+  // Smoke initially hidden
+  worldObjects.smokeActive = false;
+
+  // Timber yard
+  makeBuilding(20,12, 6,3.5,5, MAT.wall2, MAT.roof4);
+  makeBuilding(28,10, 5,3,4,   MAT.wall3, MAT.roof2);
+
+  // Coal pile
+  const coalPile = new THREE.Mesh(new THREE.CylinderGeometry(0.1,1.2,0.9,8), new THREE.MeshLambertMaterial({color:0x252020}));
+  coalPile.position.set(26,0.45,2);
+  scene.add(coalPile);
+  worldObjects.coalPile = coalPile;
+
+  // Timber stack
+  for(let i=0;i<4;i++){
+    const log = cyl(0.2,0.2,2.5,8, MAT.wood);
+    log.rotation.z = Math.PI/2;
+    log.position.set(18,0.2+i*0.45,8);
+    scene.add(log);
+  }
+  worldObjects.timberStack = {x:18,z:8};
+
+  // Anvil
+  const anvilBase = box(0.8,0.5,0.5, MAT.stone);
+  anvilBase.position.set(25,0.25,0);
+  scene.add(anvilBase);
+  const anvilTop = box(1.0,0.2,0.35, MAT.stone);
+  anvilTop.position.set(25,0.6,0);
+  scene.add(anvilTop);
+
+  // Workshop extra buildings
+  makeBuilding(30,4, 5,4,5, MAT.wall1, MAT.roof1);
+  makeBuilding(22,-10,6,3.5,5, MAT.wall4, MAT.roof2);
+  makeBuilding(30,-8, 4,3,4,   MAT.wall2, MAT.roof3);
+
+  // Tools on walls
+  for(let i=0;i<3;i++){
+    const tool = box(0.1,1.5,0.1, MAT.stone);
+    tool.position.set(18.5+i*0.4, 1.5, -2.5);
+    tool.rotation.z = -0.3;
+    scene.add(tool);
+  }
+})();
+
+// ============================================================
+// OUTSKIRTS — north and south edges, sparse
+// ============================================================
+(function buildOutskirts() {
+  // Scattered sparse buildings
+  const outBuildings = [
+    {x:5,z:30,  w:4,h:2.5,d:4, wall:MAT.wall2, roof:MAT.roof4},
+    {x:-10,z:32,w:3.5,h:2.5,d:3, wall:MAT.wall3, roof:MAT.roof3},
+    {x:10,z:-30,w:4,h:3,d:4,   wall:MAT.wall1, roof:MAT.roof2},
+    {x:-8,z:-32,w:3.5,h:2.5,d:3.5,wall:MAT.wall4,roof:MAT.roof1},
+    {x:35,z:15, w:4,h:2.5,d:3.5,wall:MAT.wall2,roof:MAT.roof4},
+    {x:35,z:-15,w:4,h:3,d:4,   wall:MAT.wall3, roof:MAT.roof2},
+    {x:-38,z:20,w:4,h:2.5,d:3.5,wall:MAT.wall1,roof:MAT.roof3},
+    {x:-38,z:-20,w:3.5,h:2.5,d:3,wall:MAT.wall4,roof:MAT.roof1},
+  ];
+  outBuildings.forEach(b => makeBuilding(b.x,b.z,b.w,b.h,b.d,b.wall,b.roof));
+
+  // Trees (simple)
+  for(let i=0;i<20;i++){
+    const angle = (i/20)*Math.PI*2 + Math.random()*0.3;
+    const dist = 45+Math.random()*10;
+    const tx = Math.cos(angle)*dist;
+    const tz = Math.sin(angle)*dist;
+    const trunk = cyl(0.2,0.3,2+Math.random(),6, MAT.wood);
+    trunk.position.set(tx,1,tz);
+    scene.add(trunk);
+    const canopy = cyl(0,2+Math.random()*1.5,3+Math.random()*2,6, MAT.grass);
+    canopy.position.set(tx,3.5+Math.random(),tz);
+    scene.add(canopy);
+  }
+})();
+
+// ============================================================
+// SMOKE PARTICLES
+// ============================================================
+const smokeParticles = [];
+function initSmoke(x,y,z) {
+  for(let i=0;i<8;i++){
+    const s = box(0.4,0.4,0.4, new THREE.MeshLambertMaterial({color:0x808080,transparent:true,opacity:0.3}));
+    s.position.set(x+Math.random()*0.5-0.25, y+Math.random()*2, z+Math.random()*0.5-0.25);
+    s.userData = {
+      baseX: x, baseZ: z,
+      speed: 0.02+Math.random()*0.03,
+      wobble: Math.random()*Math.PI*2,
+      active: false
+    };
+    s.visible = false;
+    scene.add(s);
+    smokeParticles.push(s);
+  }
+}
+initSmoke(22,5.5,0);
+
+// ============================================================
+// NPC SYSTEM
+// ============================================================
+const NPCS = [];
+
+const NPC_DEFS = [
+  {
+    name: 'Thomas',
+    title: 'the Merchant',
+    color: 0xa04820,
+    x: 6, z: 6,
+    district: 'market',
+    waypoints: [{x:6,z:6},{x:-6,z:4},{x:4,z:10},{x:8,z:2}],
+    taskId: 'setup_stall',
+    baseDialogue: [
+      "Good to see you. The market has never been busier.",
+      "If you've got time, I could use a hand setting up.",
+      "Every face that passes through here — they all love this city. Can't blame them.",
+    ],
+    taskDialogue: "I've got a new stall ready, but I need someone to help set it up at the spot near the fountain. Would you walk over there with me and get it placed?",
+    doneDialogue: [
+      "Wonderful work! The square looks even better for it.",
+      "People will be grateful. This city takes care of its own.",
+    ],
+    repDialogue: {
+      50:  "Ah, {name}! I was hoping I'd see you. The whole quarter speaks well of you.",
+      120: "There's no one I'd trust more with a job than {name}. You've earned that.",
+      250: "You've become part of what makes this place good. Truly.",
+    }
+  },
+  {
+    name: 'Agnes',
+    title: 'the Weaver',
+    color: 0xc85898,
+    x: -8, z: 3,
+    district: 'residential',
+    waypoints: [{x:-8,z:3},{x:-15,z:5},{x:-12,z:-2},{x:-5,z:1}],
+    taskId: 'bring_timber',
+    baseDialogue: [
+      "This city has everything a person could want. I can't imagine being anywhere else.",
+      "Have you seen the way the light falls on the rooftops this time of day? It's beautiful.",
+      "I've been weaving new cloth for half the families on this street.",
+    ],
+    taskDialogue: "My neighbor's house needs some timber to finish the roof. There's a stack near the workshop — could you bring it over? It would mean so much to them.",
+    doneDialogue: [
+      "That's done, then. You're kinder than you know.",
+      "The family will sleep better tonight because of you.",
+    ],
+    repDialogue: {
+      50:  "Oh, {name}! Yes, I've heard the good things you've been doing.",
+      120: "You remind me why I love living here. People like you make this place what it is.",
+      250: "I tell everyone — if you need someone you can count on, find {name}.",
+    }
+  },
+  {
+    name: 'Samuel',
+    title: 'the Alderman',
+    color: 0x205898,
+    x: 2, z: -8,
+    district: 'market',
+    waypoints: [{x:2,z:-8},{x:-4,z:-6},{x:3,z:-12},{x:8,z:-5}],
+    taskId: 'greet_family',
+    baseDialogue: [
+      "You've done well for yourself here. People are taking notice.",
+      "The city grows stronger every year. Every good deed adds to it.",
+      "I've served this community for thirty years. Never a day's regret.",
+    ],
+    taskDialogue: "A new family has arrived near the residential quarter — just moved in. Would you be the one to go welcome them? A warm greeting goes a long way in this city.",
+    doneDialogue: [
+      "That family will remember that greeting for the rest of their lives.",
+      "This is what makes our city more than buildings and roads.",
+    ],
+    repDialogue: {
+      50:  "Ah — {name}, isn't it? I've been keeping an eye on your contributions.",
+      120: "When I think of the future of this city, I think of people like you, {name}.",
+      250: "You're a pillar now. The city wouldn't be the same without you.",
+    }
+  },
+  {
+    name: 'Miriam',
+    title: 'the Baker',
+    color: 0xe08828,
+    x: -4, z: 11,
+    district: 'market',
+    waypoints: [{x:-4,z:11},{x:0,z:12},{x:4,z:9},{x:-2,z:8}],
+    taskId: 'festival_deco',
+    baseDialogue: [
+      "I baked fresh bread this morning. The whole square smelled wonderful.",
+      "Have you tried the honey cakes from the new stall? Remarkable.",
+      "A city that celebrates together stays together. That's what my mother always said.",
+    ],
+    taskDialogue: "We're decorating the square for the harvest festival! There are three spots that need garlands hung — near the lantern posts. Could you go interact with each one? I'll watch from here.",
+    doneDialogue: [
+      "Oh, it looks wonderful! This square has never been more alive.",
+      "Thank you, truly. Now everyone who passes through will feel the celebration.",
+    ],
+    repDialogue: {
+      50:  "{name}! I set a honey cake aside for you — you've earned it.",
+      120: "You know, I think of you as one of my own now.",
+      250: "My children will grow up hearing about the good you've done here.",
+    }
+  },
+  {
+    name: 'Edmund',
+    title: 'the Blacksmith',
+    color: 0x503020,
+    x: 20, z: 3,
+    district: 'workshop',
+    waypoints: [{x:20,z:3},{x:24,z:1},{x:22,z:-4},{x:18,z:2}],
+    taskId: 'fetch_coal',
+    baseDialogue: [
+      "The forge keeps this city warm and working. Don't let anyone tell you different.",
+      "Good steel, good tools — that's how you build something that lasts.",
+      "I heard you helped Thomas with the stall. The whole square looks better for it.",
+    ],
+    taskDialogue: "The forge is running low on coal — there's a pile over there by the yard. Could you fetch it and bring it back here? I'd go myself but I'm in the middle of a repair.",
+    doneDialogue: [
+      "That'll keep the forge burning. Thank you.",
+      "With coal like this, I can finish work for half the city tonight.",
+    ],
+    repDialogue: {
+      50:  "{name}. Aye, I know the name. Good worker, they say.",
+      120: "If you ever need tools — good ones — you come to me. No charge.",
+      250: "I don't say this often: you've earned the city's respect. Keep it.",
+    }
+  },
+  {
+    name: 'Constance',
+    title: 'the Neighbor',
+    color: 0x9850c0,
+    x: -22, z: 0,
+    district: 'residential',
+    waypoints: [{x:-22,z:0},{x:-20,z:-6},{x:-24,z:4},{x:-18,z:3}],
+    taskId: 'kind_word',
+    baseDialogue: [
+      "Oh, good day. It's a beautiful morning, isn't it?",
+      "I've been keeping to myself lately. The city is kind, though.",
+      "My husband used to say this was the finest place a person could live. I believe him.",
+    ],
+    taskDialogue: "I heard you speaking with Agnes earlier. She mentioned you might come by. I've been feeling a little forgotten lately — it means more than you know, someone taking the time.",
+    doneDialogue: [
+      "Thank you. I needed that more than I could say.",
+      "I'll walk to the square today, I think. First time in a while.",
+    ],
+    repDialogue: {
+      50:  "Oh — you're {name}? I've heard so many good things.",
+      120: "Seeing you brightens my day. Truly.",
+      250: "You've made this street feel like home again.",
+    }
+  },
+  {
+    name: 'Henry',
+    title: 'the Carpenter',
+    color: 0x508030,
+    x: 18, z: 14,
+    district: 'workshop',
+    waypoints: [{x:18,z:14},{x:22,z:12},{x:16,z:8},{x:20,z:16}],
+    taskId: null,
+    baseDialogue: [
+      "Every building in this city, I've had a hand in.",
+      "Wood doesn't lie. Work it well and it'll stand for a hundred years.",
+      "This workshop district — it's the heart of the city, even if the market folk don't know it.",
+    ],
+    repDialogue: {
+      50:  "{name}! Good name to know in this city.",
+      120: "I'm putting a new door on the alderman's house. Could use your eye for it.",
+      250: "Everything we build here, we build for people like you.",
+    }
+  },
+  {
+    name: 'Grace',
+    title: 'the Widow',
+    color: 0xc0a0d0,
+    x: -30, z: -5,
+    district: 'outskirts',
+    waypoints: [{x:-30,z:-5},{x:-33,z:0},{x:-28,z:-8},{x:-32,z:-3}],
+    taskId: null,
+    baseDialogue: [
+      "The quiet suits me well enough.",
+      "I've lived here all my life. I can't think of anywhere else I'd want to be.",
+      "My children grew up in this city. Their children will too, God willing.",
+    ],
+    repDialogue: {
+      50:  "Are you {name}? Yes — yes, I thought so. You look like someone who belongs here.",
+      120: "You carry the city's good name with you. I've noticed.",
+      250: "Stay. This is where you're meant to be.",
+    }
+  },
+];
+
+// NPC mesh creation
+function makeNPC(def) {
+  const group = new THREE.Group();
+  // Body
+  const body = cyl(0.25,0.3,1.0,8, new THREE.MeshLambertMaterial({color:def.color}));
+  body.position.y = 0.5;
+  group.add(body);
+  // Head
+  const head = new THREE.Mesh(new THREE.SphereGeometry(0.28,8,8), new THREE.MeshLambertMaterial({color:0xf0c890}));
+  head.position.y = 1.2;
+  group.add(head);
+  // Arms
+  const armL = cyl(0.08,0.08,0.7,6, new THREE.MeshLambertMaterial({color:def.color}));
+  armL.rotation.z = 0.4;
+  armL.position.set(-0.35,0.8,0);
+  group.add(armL);
+  const armR = armL.clone();
+  armR.position.set(0.35,0.8,0);
+  armR.rotation.z = -0.4;
+  group.add(armR);
+
+  group.position.set(def.x, 0, def.x_z || def.z);
+  scene.add(group);
+
+  const npc = {
+    def,
+    group,
+    waypoints: def.waypoints,
+    wpIndex: 0,
+    dialogueIndex: 0,
+    dialogueSeen: false,
+    taskGiven: false,
+    taskComplete: false,
+    armL, armR,
+    walkCycle: Math.random()*Math.PI*2,
+  };
+  NPCS.push(npc);
+  return npc;
+}
+
+NPC_DEFS.forEach(d => makeNPC(d));
+
+// ============================================================
+// PLAYER
+// ============================================================
+const player = {
+  group: new THREE.Group(),
+  speed: 5.5,
+  yaw: 0,
+  velY: 0,
+};
+
+(function buildPlayerMesh() {
+  const bodyMat = new THREE.MeshLambertMaterial({color:0x6880a0});
+  const b = cyl(0.22,0.26,0.9,8,bodyMat);
+  b.position.y=0.45; player.group.add(b);
+  const h = new THREE.Mesh(new THREE.SphereGeometry(0.24,8,8), new THREE.MeshLambertMaterial({color:0xf0c890}));
+  h.position.y=1.1; player.group.add(h);
+  const pack = box(0.35,0.55,0.2, new THREE.MeshLambertMaterial({color:0x604830}));
+  pack.position.set(0,0.65,-0.22); player.group.add(pack);
+  player.group.position.set(0,0,8);
+  player.group.castShadow=true;
+  scene.add(player.group);
+})();
+
+// Camera setup — AC-style spherical orbit
+let camYaw = 0, camPitch = -0.3;
+const camSmoothPos = new THREE.Vector3(0, 5.5, 8);
+
+// ============================================================
+// TASK SYSTEM
+// ============================================================
+const TASKS = {
+  setup_stall: {
+    name: 'Help Thomas set up the new stall',
+    description: 'Walk to the marker near the fountain (press E)',
+    given: false, complete: false,
+    marker: {x:3,z:5},
+    onComplete() {
+      G.prosperity += 30;
+      G.reputation += 25;
+      G.burden += 2;
+      spawnNewStall(3,5);
+      showNotify('New market stall set up! The square looks livelier.');
+      unlockTask('greet_family');
+    }
+  },
+  bring_timber: {
+    name: 'Bring timber from workshop to Agnes\'s neighbor',
+    description: 'Fetch timber from the workshop yard (press E near stack), then deliver',
+    given: false, complete: false,
+    phase: 0, // 0=fetch timber, 1=deliver
+    onComplete() {
+      G.prosperity += 35;
+      G.reputation += 30;
+      G.burden += 3;
+      upgradeHouseRoof();
+      showNotify('The house roof is fixed. The family is grateful.');
+      unlockTask('fetch_coal');
+    }
+  },
+  greet_family: {
+    name: 'Welcome the new family to the city',
+    description: 'Find the new family near the residential quarter (press E)',
+    given: false, complete: false,
+    marker: {x:-22,z:2},
+    spawned: false,
+    onComplete() {
+      G.prosperity += 25;
+      G.reputation += 20;
+      G.burden += 1.5;
+      spawnNewFamily();
+      showNotify('The family is welcomed. Two new neighbors in the city.');
+      unlockTask('festival_deco');
+    }
+  },
+  festival_deco: {
+    name: 'Hang decorations for the harvest festival',
+    description: 'Interact with all 3 decoration spots in the Market Square',
+    given: false, complete: false,
+    markersActivated: 0,
+    onComplete() {
+      G.prosperity += 40;
+      G.reputation += 35;
+      G.burden += 2.5;
+      activateFestival();
+      showNotify('The square is decorated! The festival can begin.');
+      unlockTask('kind_word');
+    }
+  },
+  fetch_coal: {
+    name: 'Fetch coal for Edmund\'s forge',
+    description: 'Collect coal from the yard (press E), then bring it to the forge',
+    given: false, complete: false,
+    phase: 0,
+    onComplete() {
+      G.prosperity += 30;
+      G.reputation += 25;
+      G.burden += 3;
+      activateForge();
+      showNotify('The forge is fueled! Smoke rises from the workshop.');
+    }
+  },
+  kind_word: {
+    name: 'Speak with Constance',
+    description: 'Visit Constance in the residential quarter (press E)',
+    given: false, complete: false,
+    onComplete() {
+      G.prosperity += 20;
+      G.reputation += 30;
+      G.burden += 1;
+      constanceHealed();
+      showNotify('Constance seems lighter. A kind word changes everything.');
+    }
+  },
+};
+
+function unlockTask(id) {
+  if(TASKS[id]) TASKS[id].available = true;
+}
+// First task always available
+TASKS.setup_stall.available = true;
+TASKS.bring_timber.available = true;
+
+// Task world effects
+function spawnNewStall(x,z) {
+  if(worldObjects.newStall) return;
+  const stall = new THREE.Group();
+  const post1 = box(0.15,2.2,0.15, MAT.wood); post1.position.set(-0.9,1.1,0); stall.add(post1);
+  const post2 = box(0.15,2.2,0.15, MAT.wood); post2.position.set(0.9,1.1,0); stall.add(post2);
+  const top = box(2.2,0.12,1.4, MAT.gold); top.position.set(0,2.2,0); stall.add(top);
+  const counter = box(1.8,0.8,0.5, MAT.wood); counter.position.set(0,0.4,0.3); stall.add(counter);
+  for(let g=0;g<4;g++){
+    const gbox = box(0.28,0.4,0.28, [MAT.market,MAT.banner2,MAT.banner3,MAT.gold][g]);
+    gbox.position.set(-0.6+g*0.4, 1.05, 0.3);
+    stall.add(gbox);
+  }
+  stall.position.set(x, 0, z);
+  stall.castShadow=true;
+  scene.add(stall);
+  worldObjects.newStall = stall;
+  collidables.push({x,z,rx:1.3,rz:0.6});
+}
+
+function upgradeHouseRoof() {
+  if(worldObjects.upgradeRoof) return;
+  const roof = new THREE.Mesh(new THREE.ConeGeometry(4.2,1.8,4), MAT.roof2);
+  roof.position.set(-20,3.5+0.9,-8);
+  roof.rotation.y = Math.PI/4;
+  roof.castShadow=true;
+  scene.add(roof);
+  worldObjects.upgradeRoof = roof;
+}
+
+let newFamilyNPCs = [];
+function spawnNewFamily() {
+  if(newFamilyNPCs.length) return;
+  const fp = worldObjects.newFamilyPos;
+  [
+    {color:0x6070b0,dx:0,dz:0,wp:[{x:fp.x,z:fp.z},{x:fp.x-3,z:fp.z+2},{x:fp.x+2,z:fp.z-1}]},
+    {color:0xd08060,dx:1.5,dz:0,wp:[{x:fp.x+1.5,z:fp.z},{x:fp.x-1,z:fp.z+3},{x:fp.x+3,z:fp.z+1}]},
+  ].forEach(fd=>{
+    const def = {
+      name:'New Neighbor',title:'',color:fd.color,
+      x:fp.x+fd.dx,z:fp.z,
+      waypoints:fd.wp,
+      baseDialogue:["We just arrived. What a wonderful city this is.","Everyone has been so kind to us.","We can't imagine living anywhere else now."],
+      repDialogue:{50:"Oh, you're {name}? We've heard so much!"}
+    };
+    const npc = makeNPC(def);
+    newFamilyNPCs.push(npc);
+  });
+}
+
+function activateFestival() {
+  worldObjects.festivalDecos.forEach(d => { d.visible = true; });
+  // Add a warm point light in market square
+  const festLight = new THREE.PointLight(0xff9030, 0.8, 20);
+  festLight.position.set(0, 5, 0);
+  scene.add(festLight);
+}
+
+function activateForge() {
+  worldObjects.smokeActive = true;
+  smokeParticles.forEach(s => { s.visible = true; s.userData.active = true; });
+  // Add glow to forge
+  const glow = new THREE.PointLight(0xff4400, 1.5, 12);
+  glow.position.set(22,2,0);
+  scene.add(glow);
+}
+
+function constanceHealed() {
+  const npc = NPCS.find(n=>n.def.name==='Constance');
+  if(npc) {
+    npc.waypoints = [{x:-22,z:0},{x:-12,z:2},{x:-8,z:5},{x:-5,z:1},{x:-18,z:-3}];
+    npc.wpIndex = 0;
+  }
+}
+
+// ============================================================
+// INTERACT MARKERS
+// ============================================================
+const taskMarkers = [];
+
+function addTaskMarker(x,z,taskId,phase,label) {
+  const mat = new THREE.MeshLambertMaterial({color:0xe8c030,emissive:0xe8c030,emissiveIntensity:0.6,transparent:true,opacity:0.85});
+  const m = new THREE.Mesh(new THREE.CylinderGeometry(0.5,0.5,0.08,16), mat);
+  m.position.set(x,0.04,z);
+  m.userData = {taskId, phase, label};
+  scene.add(m);
+  taskMarkers.push(m);
+  return m;
+}
+
+// Add markers for task positions (created when tasks unlock)
+worldObjects.stallMarker = addTaskMarker(3, 5, 'setup_stall', 0, 'Press E — place new stall');
+worldObjects.timberMarkerFetch = addTaskMarker(18,8,'bring_timber',0,'Press E — pick up timber');
+worldObjects.timberMarkerDeliver = addTaskMarker(-20,-8,'bring_timber',1,'Press E — deliver timber');
+worldObjects.coalMarkerFetch = addTaskMarker(26,2,'fetch_coal',0,'Press E — collect coal');
+worldObjects.coalMarkerDeliver = addTaskMarker(22,0,'fetch_coal',1,'Press E — bring coal to forge');
+worldObjects.greetMarker = addTaskMarker(-22,2,'greet_family',0,'Press E — greet new family');
+worldObjects.constanceMarker = addTaskMarker(-22,0,'kind_word',0,'Press E — speak with Constance');
+
+// Hide all initially — show based on task state
+taskMarkers.forEach(m => m.visible = false);
+
+// Decoration markers
+worldObjects.decoMarkers.forEach(dm=>{
+  dm.mesh.visible = false;
+});
+
+function updateVisibleMarkers() {
+  taskMarkers.forEach(m => {
+    const task = TASKS[m.userData.taskId];
+    if(!task) { m.visible=false; return; }
+    if(task.complete || !task.available || !task.given) { m.visible=false; return; }
+    if(m.userData.phase===undefined) { m.visible=true; return; }
+    const phase = task.phase||0;
+    m.visible = (m.userData.phase===phase);
+  });
+  // Festival deco markers
+  const festTask = TASKS['festival_deco'];
+  worldObjects.decoMarkers.forEach(dm=>{
+    dm.mesh.visible = festTask.given && !festTask.complete && !dm.activated;
+  });
+}
+
+// ============================================================
+// COLLISION
+// ============================================================
+function checkCollision(nx, nz) {
+  for(const c of collidables){
+    const dx = Math.abs(nx - c.x), dz = Math.abs(nz - c.z);
+    if(dx < (c.rx||1.2) && dz < (c.rz||1.2)) return true;
+  }
+  // World boundary
+  if(Math.abs(nx)>55 || Math.abs(nz)>55) return true;
+  return false;
+}
+
+// ============================================================
+// DIALOGUE SYSTEM
+// ============================================================
+let dialogueQueue = [];
+let dialogueSpeaker = '';
+let dialogueCallback = null;
+
+function showDialogue(speaker, lines, cb) {
+  dialogueQueue = Array.isArray(lines) ? [...lines] : [lines];
+  dialogueSpeaker = speaker;
+  dialogueCallback = cb || null;
+  G.dialogueOpen = true;
+  advanceDialogue();
+}
+
+function advanceDialogue() {
+  if(dialogueQueue.length === 0) {
+    closeDialogue();
+    return;
+  }
+  const text = dialogueQueue.shift().replace('{name}', G.playerName);
+  document.getElementById('dialogue-speaker').textContent = dialogueSpeaker.toUpperCase();
+  document.getElementById('dialogue-text').textContent = text;
+  document.getElementById('dialogue-box').style.display = 'block';
+}
+
+function closeDialogue() {
+  document.getElementById('dialogue-box').style.display = 'none';
+  G.dialogueOpen = false;
+  if(dialogueCallback) { dialogueCallback(); dialogueCallback=null; }
+}
+
+document.getElementById('dialogue-continue').addEventListener('click', () => {
+  if(G.dialogueOpen) advanceDialogue();
+});
+
+// NPC interaction
+function interactWithNPC(npc) {
+  const def = npc.def;
+  const task = def.taskId ? TASKS[def.taskId] : null;
+
+  // Build dialogue lines
+  let lines = [];
+
+  // Pick rep-aware dialogue if available
+  let baseLines = [...def.baseDialogue];
+  const repKeys = def.repDialogue ? Object.keys(def.repDialogue).map(Number).sort((a,b)=>b-a) : [];
+  for(const rk of repKeys){
+    if(G.reputation >= rk){ baseLines = [def.repDialogue[rk], ...baseLines]; break; }
+  }
+
+  if(task && task.available && !task.given && !task.complete) {
+    lines = [baseLines[0], def.taskDialogue];
+    showDialogue(`${def.name} — ${def.title}`, lines, () => {
+      task.given = true;
+      G.activeTask = def.taskId;
+      document.getElementById('hud-task').textContent = `Task: ${task.name}`;
+      updateVisibleMarkers();
+      showNotify(`New task: ${task.name}`);
+    });
+  } else if(task && task.given && !task.complete) {
+    lines = [`${task.description}. I'm counting on you.`];
+    showDialogue(`${def.name} — ${def.title}`, lines);
+  } else if(task && task.complete) {
+    lines = def.doneDialogue || [baseLines[Math.floor(Math.random()*baseLines.length)]];
+    showDialogue(`${def.name} — ${def.title}`, lines);
+  } else {
+    const idx = Math.floor(Math.random()*baseLines.length);
+    lines = [baseLines[idx]];
+    showDialogue(`${def.name} — ${def.title}`, lines);
+  }
+
+  // Turn NPC toward player
+  const dx = player.group.position.x - npc.group.position.x;
+  const dz = player.group.position.z - npc.group.position.z;
+  npc.group.rotation.y = Math.atan2(dx,dz);
+}
+
+// Task object interaction
+function interactWithTaskMarker(marker) {
+  const tid = marker.userData.taskId;
+  const task = TASKS[tid];
+  if(!task || !task.given || task.complete) return;
+
+  if(tid==='setup_stall'){
+    task.complete = true;
+    G.completedTasks.add(tid);
+    task.onComplete();
+    G.activeTask = null;
+    document.getElementById('hud-task').textContent='';
+    const npc = NPCS.find(n=>n.def.taskId===tid);
+    if(npc){ setTimeout(()=>showDialogue(`${npc.def.name} — ${npc.def.title}`, npc.def.doneDialogue),500); }
+    updateVisibleMarkers();
+  }
+  else if(tid==='bring_timber'){
+    if(task.phase===0){
+      task.phase=1;
+      showNotify('Timber collected. Now bring it to Agnes\'s neighbor.');
+      document.getElementById('hud-task').textContent=`Task: ${TASKS.bring_timber.description} — now deliver`;
+      updateVisibleMarkers();
+    } else {
+      task.complete=true;
+      G.completedTasks.add(tid);
+      task.onComplete();
+      G.activeTask=null;
+      document.getElementById('hud-task').textContent='';
+      const npc=NPCS.find(n=>n.def.taskId===tid);
+      if(npc){ setTimeout(()=>showDialogue(`${npc.def.name} — ${npc.def.title}`, npc.def.doneDialogue),500); }
+      updateVisibleMarkers();
+    }
+  }
+  else if(tid==='greet_family'){
+    task.complete=true;
+    G.completedTasks.add(tid);
+    task.onComplete();
+    G.activeTask=null;
+    document.getElementById('hud-task').textContent='';
+    const npc=NPCS.find(n=>n.def.taskId===tid);
+    if(npc){ setTimeout(()=>showDialogue(`${npc.def.name} — ${npc.def.title}`, npc.def.doneDialogue),500); }
+    updateVisibleMarkers();
+  }
+  else if(tid==='fetch_coal'){
+    if(task.phase===0){
+      task.phase=1;
+      showNotify('Coal collected. Bring it to Edmund at the forge.');
+      document.getElementById('hud-task').textContent=`Task: ${TASKS.fetch_coal.description} — now deliver`;
+      updateVisibleMarkers();
+    } else {
+      task.complete=true;
+      G.completedTasks.add(tid);
+      task.onComplete();
+      G.activeTask=null;
+      document.getElementById('hud-task').textContent='';
+      const npc=NPCS.find(n=>n.def.taskId===tid);
+      if(npc){ setTimeout(()=>showDialogue(`${npc.def.name} — ${npc.def.title}`, npc.def.doneDialogue),500); }
+      updateVisibleMarkers();
+    }
+  }
+  else if(tid==='kind_word'){
+    task.complete=true;
+    G.completedTasks.add(tid);
+    task.onComplete();
+    G.activeTask=null;
+    document.getElementById('hud-task').textContent='';
+    const npc=NPCS.find(n=>n.def.taskId===tid);
+    if(npc){ setTimeout(()=>showDialogue(`${npc.def.name} — ${npc.def.title}`, npc.def.doneDialogue),500); }
+    updateVisibleMarkers();
+  }
+}
+
+function interactWithDecoMarker(dm) {
+  const task = TASKS['festival_deco'];
+  if(!task || !task.given || task.complete || dm.activated) return;
+  dm.activated = true;
+  dm.mesh.material.emissive.setHex(0x38a028);
+  dm.mesh.material.color.setHex(0x38a028);
+  task.markersActivated = (task.markersActivated||0)+1;
+  showNotify(`Decoration placed! (${task.markersActivated}/3)`);
+  if(task.markersActivated>=3){
+    task.complete=true;
+    G.completedTasks.add('festival_deco');
+    task.onComplete();
+    G.activeTask=null;
+    document.getElementById('hud-task').textContent='';
+    const npc=NPCS.find(n=>n.def.taskId==='festival_deco');
+    if(npc){ setTimeout(()=>showDialogue(`${npc.def.name} — ${npc.def.title}`, npc.def.doneDialogue),500); }
+  }
+  updateVisibleMarkers();
+}
+
+// ============================================================
+// NOTIFY
+// ============================================================
+let notifyTimeout;
+function showNotify(msg) {
+  const el = document.getElementById('task-notify');
+  el.textContent = msg;
+  el.classList.add('show');
+  clearTimeout(notifyTimeout);
+  notifyTimeout = setTimeout(()=>el.classList.remove('show'), 3500);
+}
+
+// ============================================================
+// INPUT
+// ============================================================
+document.addEventListener('keydown', e => {
+  G.keys[e.code] = true;
+  if(e.code==='KeyE' && G.started){
+    if(G.dialogueOpen){ advanceDialogue(); return; }
+    handleInteract();
+  }
+  if(e.code==='Escape'){
+    if(G.dialogueOpen){ closeDialogue(); return; }
+  }
+});
+document.addEventListener('keyup', e => { G.keys[e.code] = false; });
+
+// Any click on the game re-locks the pointer
+document.addEventListener('click', () => {
+  if(G.started) canvas.requestPointerLock();
+});
+document.addEventListener('pointerlockchange', () => {
+  G.pointerLocked = document.pointerLockElement === canvas;
+  const hint = document.getElementById('lock-hint');
+  if(hint) hint.style.display = (G.started && !G.pointerLocked) ? 'flex' : 'none';
+});
+document.addEventListener('mousemove', e => {
+  if(!G.pointerLocked || !G.started) return;
+  camYaw   -= e.movementX * 0.0025;
+  camPitch  = Math.max(-0.7, Math.min(0.35, camPitch + e.movementY * 0.0025));
+});
+
+function handleInteract() {
+  // Check NPC
+  if(G.nearNPC){ interactWithNPC(G.nearNPC); return; }
+  // Check task markers
+  for(const m of taskMarkers){
+    if(!m.visible) continue;
+    const dx=player.group.position.x-m.position.x, dz=player.group.position.z-m.position.z;
+    if(Math.sqrt(dx*dx+dz*dz)<2.5){ interactWithTaskMarker(m); return; }
+  }
+  // Check deco markers
+  for(const dm of worldObjects.decoMarkers){
+    if(!dm.mesh.visible) continue;
+    const dx=player.group.position.x-dm.mesh.position.x, dz=player.group.position.z-dm.mesh.position.z;
+    if(Math.sqrt(dx*dx+dz*dz)<2.5){ interactWithDecoMarker(dm); return; }
+  }
+}
+
+// ============================================================
+// WELCOME DIALOGUE
+// ============================================================
+function startWelcomeDialogue() {
+  const thomas = NPCS.find(n=>n.def.name==='Thomas');
+  setTimeout(()=>{
+    showDialogue('Thomas — the Merchant', [
+      `Welcome, ${G.playerName}! We're glad you've come.`,
+      "The market is lively today — the whole city is, truth be told.",
+      "You've arrived at a good time. There's always something to be done here, and folk who do it are well remembered.",
+    ], () => {
+      showNotify('Explore the city. Talk to the citizens. Press E to interact.');
+    });
+  }, 1500);
+}
+
+// ============================================================
+// TITLE SCREEN
+// ============================================================
+document.getElementById('begin-btn').addEventListener('click', () => {
+  const nameVal = document.getElementById('player-name').value.trim();
+  G.playerName = nameVal || 'Pilgrim';
+  document.getElementById('hud-name').textContent = G.playerName;
+  const ts = document.getElementById('title-screen');
+  ts.classList.add('fade-out');
+  canvas.requestPointerLock();
+  setTimeout(()=>{
+    ts.style.display='none';
+    document.getElementById('hud').style.display='block';
+    G.started = true;
+    startWelcomeDialogue();
+  }, 1600);
+});
+document.getElementById('player-name').addEventListener('keydown', e=>{
+  if(e.key==='Enter') document.getElementById('begin-btn').click();
+});
+
+// ============================================================
+// GAME LOOP
+// ============================================================
+const clock = new THREE.Clock();
+let accumulated = 0;
+const FIXED_DT = 1/60;
+
+function updateNPCs(dt) {
+  NPCS.forEach(npc => {
+    const wp = npc.waypoints[npc.wpIndex];
+    const dx = wp.x - npc.group.position.x;
+    const dz = wp.z - npc.group.position.z;
+    const dist = Math.sqrt(dx*dx+dz*dz);
+    const speed = 1.2;
+
+    if(dist > 0.3){
+      npc.group.position.x += (dx/dist)*speed*dt;
+      npc.group.position.z += (dz/dist)*speed*dt;
+      npc.group.rotation.y = Math.atan2(dx,dz);
+      // Walk animation
+      npc.walkCycle += dt*3;
+      if(npc.armL) npc.armL.rotation.x = Math.sin(npc.walkCycle)*0.3;
+      if(npc.armR) npc.armR.rotation.x = -Math.sin(npc.walkCycle)*0.3;
+    } else {
+      npc.wpIndex = (npc.wpIndex+1) % npc.waypoints.length;
+      // Pause occasionally
+      if(Math.random()<0.3){
+        const origWpi = npc.wpIndex;
+        setTimeout(()=>{ if(npc.wpIndex===origWpi) npc.wpIndex=(npc.wpIndex+1)%npc.waypoints.length; },1000+Math.random()*2000);
+      }
+    }
+
+    // Face player if nearby
+    const pdx = player.group.position.x - npc.group.position.x;
+    const pdz = player.group.position.z - npc.group.position.z;
+    const pdist = Math.sqrt(pdx*pdx+pdz*pdz);
+    if(pdist<4 && !G.dialogueOpen){
+      npc.group.rotation.y = Math.atan2(pdx,pdz);
+    }
+  });
+}
+
+function updatePlayer(dt) {
+  if(!G.started || G.dialogueOpen) return;
+
+  const moveDir = new THREE.Vector3();
+  if(G.keys['KeyW']||G.keys['ArrowUp'])    moveDir.z -= 1;
+  if(G.keys['KeyS']||G.keys['ArrowDown'])  moveDir.z += 1;
+  if(G.keys['KeyA']||G.keys['ArrowLeft'])  moveDir.x -= 1;
+  if(G.keys['KeyD']||G.keys['ArrowRight']) moveDir.x += 1;
+
+  if(moveDir.lengthSq() > 0){
+    moveDir.normalize();
+    const cos = Math.cos(camYaw), sin = Math.sin(camYaw);
+    const wx = cos*moveDir.x - sin*moveDir.z;
+    const wz = sin*moveDir.x + cos*moveDir.z;
+    const step = player.speed * dt;
+    const nx = player.group.position.x + wx*step;
+    const nz = player.group.position.z + wz*step;
+
+    if(!checkCollision(nx, player.group.position.z)) player.group.position.x = nx;
+    if(!checkCollision(player.group.position.x, nz)) player.group.position.z = nz;
+
+    // Smooth angle lerp (handles wrap-around)
+    const targetYaw = Math.atan2(wx, wz);
+    let diff = targetYaw - player.group.rotation.y;
+    while(diff >  Math.PI) diff -= Math.PI * 2;
+    while(diff < -Math.PI) diff += Math.PI * 2;
+    player.group.rotation.y += diff * 0.2;
+  }
+}
+
+function updateCamera() {
+  const px = player.group.position.x;
+  const pz = player.group.position.z;
+  const py = player.group.position.y;
+
+  const cd = 7;
+  const horiz = Math.cos(camPitch) * cd;
+  const tx = px - Math.sin(camYaw) * horiz;
+  const ty = py + 3.5 - Math.sin(camPitch) * cd;
+  const tz = pz - Math.cos(camYaw) * horiz;
+
+  // Smooth spring arm — fast enough to feel responsive, slow enough to feel weighty
+  const k = 0.14;
+  camSmoothPos.x += (tx - camSmoothPos.x) * k;
+  camSmoothPos.y += (ty - camSmoothPos.y) * (k * 0.8);
+  camSmoothPos.z += (tz - camSmoothPos.z) * k;
+
+  camera.position.copy(camSmoothPos);
+  camera.lookAt(px, py + 0.9, pz);
+}
+
+function updateInteractPrompt() {
+  let near = null;
+  let nearDist = 3.5;
+
+  // Check NPCs
+  NPCS.forEach(npc => {
+    const dx=player.group.position.x-npc.group.position.x;
+    const dz=player.group.position.z-npc.group.position.z;
+    const d=Math.sqrt(dx*dx+dz*dz);
+    if(d<nearDist){ near='npc'; nearDist=d; G.nearNPC=npc; }
+  });
+  if(!near) G.nearNPC=null;
+
+  // Check task markers
+  if(!near){
+    for(const m of taskMarkers){
+      if(!m.visible) continue;
+      const dx=player.group.position.x-m.position.x;
+      const dz=player.group.position.z-m.position.z;
+      if(Math.sqrt(dx*dx+dz*dz)<2.5){ near='marker'; break; }
+    }
+  }
+  // Check deco markers
+  if(!near){
+    for(const dm of worldObjects.decoMarkers){
+      if(!dm.mesh.visible) continue;
+      const dx=player.group.position.x-dm.mesh.position.x;
+      const dz=player.group.position.z-dm.mesh.position.z;
+      if(Math.sqrt(dx*dx+dz*dz)<2.5){ near='deco'; break; }
+    }
+  }
+
+  const prompt = document.getElementById('interact-prompt');
+  if(near && !G.dialogueOpen){
+    prompt.style.display='block';
+    if(near==='npc' && G.nearNPC) {
+      prompt.textContent = `Press E to talk to ${G.nearNPC.def.name}`;
+    } else {
+      prompt.textContent = 'Press E to interact';
+    }
+  } else {
+    prompt.style.display='none';
+  }
+}
+
+function updateBurden(dt) {
+  // Grows slowly over time just by being in the city
+  G.burden += dt * 0.08;
+  // Clamp
+  G.burden = Math.min(G.burden, 100);
+}
+
+function updateHUD() {
+  document.getElementById('hud-prosperity').textContent = Math.floor(G.prosperity);
+  document.getElementById('hud-rep').textContent = getRepLabel();
+  document.getElementById('burden-bar-fill').style.width = G.burden + '%';
+}
+
+function updateSmoke(dt) {
+  if(!worldObjects.smokeActive) return;
+  smokeParticles.forEach(s=>{
+    s.position.y += s.userData.speed * 60 * dt;
+    s.userData.wobble += dt;
+    s.position.x = s.userData.baseX + Math.sin(s.userData.wobble)*0.3;
+    s.position.z = s.userData.baseZ + Math.cos(s.userData.wobble*0.7)*0.3;
+    s.material.opacity = Math.max(0, 0.35 - (s.position.y-5)*0.04);
+    if(s.position.y > 12){
+      s.position.y = 5 + Math.random()*1;
+      s.position.x = s.userData.baseX + Math.random()*0.5-0.25;
+      s.position.z = s.userData.baseZ + Math.random()*0.5-0.25;
+      s.material.opacity = 0.1+Math.random()*0.15;
+    }
+  });
+}
+
+function animateMarkers(t) {
+  taskMarkers.forEach(m=>{
+    if(m.visible){
+      m.position.y = 0.04 + Math.sin(t*2+m.position.x)*0.06;
+      m.rotation.y = t*0.8;
+    }
+  });
+  worldObjects.decoMarkers.forEach(dm=>{
+    if(dm.mesh.visible){
+      dm.mesh.position.y = 0.04+Math.sin(t*2+dm.index)*0.05;
+      dm.mesh.rotation.y = t*0.8;
+    }
+  });
+  // Festival flags wave
+  if(TASKS.festival_deco.complete){
+    worldObjects.festivalDecos.forEach((d,i)=>{
+      if(d.visible && d.type==='Mesh'){
+        d.rotation.y = Math.sin(t*1.5+i)*0.3;
+      }
+    });
+  }
+}
+
+function render(t) {
+  requestAnimationFrame(render);
+  const dt = Math.min(clock.getDelta(), 0.05);
+  accumulated += dt;
+  G.time += dt;
+
+  while(accumulated >= FIXED_DT){
+    if(G.started){
+      updatePlayer(FIXED_DT);
+      updateNPCs(FIXED_DT);
+      updateBurden(FIXED_DT);
+    }
+    accumulated -= FIXED_DT;
+  }
+
+  if(G.started){
+    updateCamera();
+    updateInteractPrompt();
+    updateHUD();
+    updateSmoke(dt);
+    animateMarkers(G.time);
+  }
+
+  renderer.render(scene, camera);
+}
+
+requestAnimationFrame(render);
+updateVisibleMarkers();
+
+if('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('./sw.js');
+  });
+}
+</script>
+</body>
+</html>
